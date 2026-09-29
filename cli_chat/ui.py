@@ -184,6 +184,7 @@ def print_help_table() -> None:
     table.add_row("/model [name|#]", "Switch active model by name or index #. Lists models if empty.")
     table.add_row("/pull <name>", "Download/pull a new model to the remote Ollama server.")
     table.add_row("/delete <name>", "Delete a model from the remote Ollama server.")
+    table.add_row("/detach, /unload", "Unload active model from server RAM to free memory.")
     table.add_row("/history", "View questions & turns in the current session.")
     table.add_row("/save [path]", "Export session transcript as a formatted Markdown (.md) file.")
     table.add_row("/json [path]", "Export session transcript as a raw JSON (.json) file.")

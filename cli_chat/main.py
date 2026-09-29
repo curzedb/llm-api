@@ -46,6 +46,8 @@ SLASH_COMMANDS = [
     "/model",
     "/pull",
     "/delete",
+    "/detach",
+    "/unload",
     "/history",
     "/save",
     "/json",
@@ -292,6 +294,15 @@ def execute_slash_command(
                     console.print(f"[bold bright_red]Delete failed:[/bold bright_red] {exc}")
             else:
                 console.print("[dim]Deletion cancelled.[/dim]")
+
+    elif cmd in ("/detach", "/unload"):
+        target_model = arg if arg else session.model
+        console.print(f"[dim]Unloading model '[bold cyan]{target_model}[/bold cyan]' from server RAM...[/dim]")
+        success = client.unload_model(target_model)
+        if success:
+            console.print(f"[bold bright_green]✔ Model '{target_model}' successfully unloaded from RAM.[/bold bright_green] Server memory freed.")
+        else:
+            console.print(f"[bright_yellow]Notice: Model '{target_model}' was not actively loaded in RAM or host did not respond.[/bright_yellow]")
 
     elif cmd == "/history":
         history = session.get_history_summary()

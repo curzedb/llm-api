@@ -217,6 +217,17 @@ class OllamaClient:
         except httpx.RequestError as exc:
             raise OllamaConnectionError(f"Failed to delete model '{model_name}' from {self.config.host}: {exc}") from exc
 
+    def unload_model(self, model_name: str) -> bool:
+        """
+        Detach/unload a model from server RAM immediately using keep_alive=0.
+        """
+        try:
+            with self._get_client() as client:
+                response = client.post("/api/generate", json={"model": model_name, "keep_alive": 0})
+                return response.status_code == 200
+        except Exception:
+            return False
+
     def stream_chat(
         self,
         messages: List[Dict[str, str]],
