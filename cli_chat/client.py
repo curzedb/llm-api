@@ -182,6 +182,41 @@ class OllamaClient:
         except httpx.RequestError as exc:
             raise OllamaConnectionError(f"Failed to fetch models from {self.config.host}: {exc}") from exc
 
+    def pull_model(self, model_name: str) -> Generator[Dict[str, Any], None, None]:
+        """
+        Stream model pulling progress from remote Ollama server via POST /api/pull.
+        Yields JSON progress events.
+        """
+        payload = {"name": model_name, "stream": True}
+        # Model download can take several minutes/hours depending on size, so timeout is generous
+        pull_timeout = httpx.Timeout(read=3600.0, connect=self.config.connect_timeout, write=30.0, pool=10.0)
+        try:
+            with httpx.Client(base_url=self.config.host, timeout=pull_timeout) as client:
+                with client.stream("POST", "/api/pull", json=payload) as response:
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if not line:
+                            continue
+                        try:
+                            yield json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+        except httpx.RequestError as exc:
+            raise OllamaConnectionError(f"Failed to pull model '{model_name}' from {self.config.host}: {exc}") from exc
+
+    def delete_model(self, model_name: str) -> bool:
+        """
+        Delete a model from remote Ollama server via DELETE /api/delete.
+        """
+        payload = {"name": model_name}
+        try:
+            with self._get_client() as client:
+                response = client.request("DELETE", "/api/delete", json=payload)
+                response.raise_for_status()
+                return response.status_code == 200
+        except httpx.RequestError as exc:
+            raise OllamaConnectionError(f"Failed to delete model '{model_name}' from {self.config.host}: {exc}") from exc
+
     def stream_chat(
         self,
         messages: List[Dict[str, str]],

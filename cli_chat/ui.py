@@ -181,7 +181,9 @@ def print_help_table() -> None:
     table.add_row("/help, /?", "Show this command cheat sheet.")
     table.add_row("/clear, /c", "Reset conversation context/memory (preserves persona).")
     table.add_row("/system <prompt>", "Change the system prompt / persona dynamically.")
-    table.add_row("/model [name]", "Switch active model. Without arguments, lists server models.")
+    table.add_row("/model [name|#]", "Switch active model by name or index #. Lists models if empty.")
+    table.add_row("/pull <name>", "Download/pull a new model to the remote Ollama server.")
+    table.add_row("/delete <name>", "Delete a model from the remote Ollama server.")
     table.add_row("/history", "View questions & turns in the current session.")
     table.add_row("/save [path]", "Export session transcript as a formatted Markdown (.md) file.")
     table.add_row("/json [path]", "Export session transcript as a raw JSON (.json) file.")
@@ -205,14 +207,15 @@ def print_model_table(models: List[Dict[str, Any]], active_model: str) -> None:
         header_style="bold bright_cyan",
         expand=True,
     )
-    table.add_column("Status", justify="center", width=8)
+    table.add_column("#", justify="center", width=4, style="bold bright_yellow")
+    table.add_column("Status", justify="center", width=10)
     table.add_column("Model Name", style="bold white")
     table.add_column("Parameters", justify="center", style="bright_yellow")
     table.add_column("Quantization", justify="center", style="cyan")
     table.add_column("File Size", justify="right", style="green")
     table.add_column("Modified", justify="right", style="dim")
 
-    for m in models:
+    for idx, m in enumerate(models, 1):
         name = m.get("name", "unknown")
         details = m.get("details", {})
         param_size = details.get("parameter_size", "N/A")
@@ -225,7 +228,7 @@ def print_model_table(models: List[Dict[str, Any]], active_model: str) -> None:
         status = "[bold green]▶ ACTIVE[/bold green]" if is_active else "[dim]AVAILABLE[/dim]"
         name_styled = f"[bold bright_cyan]{name}[/bold bright_cyan]" if is_active else name
 
-        table.add_row(status, name_styled, param_size, quant, size_str, modified)
+        table.add_row(str(idx), status, name_styled, param_size, quant, size_str, modified)
 
     console.print(table)
 

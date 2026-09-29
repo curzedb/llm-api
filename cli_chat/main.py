@@ -44,6 +44,8 @@ SLASH_COMMANDS = [
     "/clear",
     "/system",
     "/model",
+    "/pull",
+    "/delete",
     "/history",
     "/save",
     "/json",
@@ -202,24 +204,94 @@ def execute_slash_command(
                 )
             )
 
-    elif cmd == "/model":
+    elif cmd in ("/model", "/models"):
         if not arg:
             try:
                 models = client.list_models()
                 print_model_table(models, session.model)
                 console.print(
-                    "[dim]To switch active model, run: [bold cyan]/model <model_name>[/bold cyan][/dim]"
+                    "[dim]Switch model: [bold cyan]/model <#>[/bold cyan] or [bold cyan]/model <name>[/bold cyan] "
+                    "| Pull model: [bold cyan]/pull <name>[/bold cyan][/dim]"
                 )
             except Exception as exc:
                 console.print(f"[bold bright_red]Failed to retrieve models:[/bold bright_red] {exc}")
         else:
-            # Switch active model
-            old_model = session.model
-            session.set_model(arg)
-            console.print(
-                f"[bold bright_green]Switched active model:[/bold bright_green] "
-                f"[dim]{old_model}[/dim] ➔ [bold bright_cyan]{session.model}[/bold bright_cyan]"
-            )
+            try:
+                # Check if user entered a number (index from list)
+                if arg.isdigit():
+                    models = client.list_models()
+                    idx = int(arg)
+                    if 1 <= idx <= len(models):
+                        new_model_name = models[idx - 1].get("name", "")
+                        old_model = session.model
+                        session.set_model(new_model_name)
+                        console.print(
+                            f"[bold bright_green]Switched active model:[/bold bright_green] "
+                            f"[dim]{old_model}[/dim] ➔ [bold bright_cyan]{session.model}[/bold bright_cyan]"
+                        )
+                    else:
+                        console.print(
+                            f"[bright_yellow]Invalid model number '{arg}'. Choose between 1 and {len(models)}.[/bright_yellow]"
+                        )
+                else:
+                    # Switch by name
+                    old_model = session.model
+                    session.set_model(arg)
+                    console.print(
+                        f"[bold bright_green]Switched active model:[/bold bright_green] "
+                        f"[dim]{old_model}[/dim] ➔ [bold bright_cyan]{session.model}[/bold bright_cyan]"
+                    )
+            except Exception as exc:
+                console.print(f"[bold bright_red]Model switch error:[/bold bright_red] {exc}")
+
+    elif cmd == "/pull":
+        if not arg:
+            console.print("[bright_yellow]Usage: /pull <model_name>[/bright_yellow] (e.g. [cyan]/pull llama3.2:3b[/cyan])")
+        else:
+            console.print(f"[dim]Initiating download for '[bold cyan]{arg}[/bold cyan]' on remote Ollama server...[/dim]")
+            try:
+                with Live(console=console, refresh_per_second=4) as live:
+                    last_status = ""
+                    for progress in client.pull_model(arg):
+                        status = progress.get("status", "")
+                        total = progress.get("total", 0)
+                        completed = progress.get("completed", 0)
+                        if total > 0:
+                            pct = (completed / total) * 100
+                            comp_mb = completed / (1024 * 1024)
+                            total_mb = total / (1024 * 1024)
+                            msg = f"[cyan]{status}[/cyan]: [bold green]{pct:.1f}%[/bold green] ({comp_mb:.1f} MB / {total_mb:.1f} MB)"
+                        else:
+                            msg = f"[cyan]{status}[/cyan]"
+                        if msg != last_status:
+                            live.update(Panel(msg, title=f"Downloading {arg}", border_style="bright_blue"))
+                            last_status = msg
+                console.print(f"[bold bright_green]✔ Model '{arg}' successfully pulled to Ollama server![/bold bright_green]")
+                # Switch to it automatically
+                old_model = session.model
+                session.set_model(arg)
+                console.print(f"[dim]Active model switched to:[/dim] [bold bright_cyan]{session.model}[/bold bright_cyan]")
+            except Exception as exc:
+                console.print(f"[bold bright_red]Pull failed:[/bold bright_red] {exc}")
+
+    elif cmd in ("/delete", "/rm"):
+        if not arg:
+            console.print("[bright_yellow]Usage: /delete <model_name>[/bright_yellow] (e.g. [cyan]/delete mistral:7b[/cyan])")
+        else:
+            confirm = console.input(f"[bold bright_red]Are you sure you want to delete '{arg}' from the server? [y/N]: [/bold bright_red]").strip().lower()
+            if confirm in ("y", "yes"):
+                try:
+                    success = client.delete_model(arg)
+                    if success:
+                        console.print(f"[bold bright_green]✔ Model '{arg}' deleted from Ollama server.[/bold bright_green]")
+                        # If active model was deleted, switch back to config default
+                        if session.model == arg:
+                            session.set_model(config.model)
+                            console.print(f"[dim]Active model reverted to:[/dim] [cyan]{session.model}[/cyan]")
+                except Exception as exc:
+                    console.print(f"[bold bright_red]Delete failed:[/bold bright_red] {exc}")
+            else:
+                console.print("[dim]Deletion cancelled.[/dim]")
 
     elif cmd == "/history":
         history = session.get_history_summary()
@@ -281,7 +353,45 @@ def execute_slash_command(
     return True
 
 
-def run_interactive_loop(config: Config) -> None:
+def interactive_select_model(client: OllamaClient, current_model: str) -> str:
+    """Interactively prompt user to select a model from the remote server."""
+    try:
+        models = client.list_models()
+        if not models:
+            console.print("[dim yellow]No models found on server. Using default.[/dim yellow]")
+            return current_model
+
+        print_model_table(models, current_model)
+        console.print("[dim]Select a model to use for this session:[/dim]")
+
+        while True:
+            choice = console.input(
+                f"[bold cyan]Enter model # (1-{len(models)}) or name [Enter for '{current_model}']: [/bold cyan]"
+            ).strip()
+
+            if not choice:
+                return current_model
+
+            if choice.isdigit():
+                idx = int(choice)
+                if 1 <= idx <= len(models):
+                    chosen = models[idx - 1].get("name", "")
+                    if chosen:
+                        console.print(f"[bold bright_green]Active model set to:[/bold bright_green] [cyan]{chosen}[/cyan]\n")
+                        return chosen
+                console.print(f"[bright_yellow]Invalid number. Choose between 1 and {len(models)}.[/bright_yellow]")
+            else:
+                match = next((m.get("name") for m in models if m.get("name", "").lower() == choice.lower()), None)
+                if match:
+                    console.print(f"[bold bright_green]Active model set to:[/bold bright_green] [cyan]{match}[/cyan]\n")
+                    return match
+                return choice
+    except Exception as exc:
+        console.print(f"[dim yellow]Could not fetch model list: {exc}[/dim yellow]")
+        return current_model
+
+
+def run_interactive_loop(config: Config, prompt_selection: bool = False) -> None:
     """Run interactive terminal REPL session."""
     client = OllamaClient(config)
     session = ChatSession(
@@ -307,16 +417,22 @@ def run_interactive_loop(config: Config) -> None:
             "You may still explore CLI commands, or resolve connection and retry.[/dim yellow]\n"
         )
     else:
-        print_banner(config.host, config.model, healthy=True)
-        # Check if selected model is in list
-        if config.model not in health.available_models and not any(
-            m.startswith(config.model.split(":")[0]) for m in health.available_models
-        ):
-            console.print(
-                f"[bright_yellow]⚠️  Notice: Model '[bold]{config.model}[/bold]' was not detected in remote tags.[/bright_yellow]\n"
-                f"[dim]Available on host: {', '.join(health.available_models) if health.available_models else 'None'}[/dim]\n"
-                f"[dim]Use [bold cyan]/model[/bold cyan] to select an available model or pull it on the Ubuntu VM.[/dim]\n"
-            )
+        # If user passed --select or if model not in list, prompt selection
+        if prompt_selection:
+            selected = interactive_select_model(client, session.model)
+            session.set_model(selected)
+
+        print_banner(config.host, session.model, healthy=True)
+
+        if not prompt_selection and health.available_models:
+            if session.model not in health.available_models and not any(
+                m.startswith(session.model.split(":")[0]) for m in health.available_models
+            ):
+                console.print(
+                    f"[bright_yellow]⚠️  Notice: Model '[bold]{session.model}[/bold]' was not detected in remote tags.[/bright_yellow]\n"
+                    f"[dim]Available on host: {', '.join(health.available_models)}[/dim]\n"
+                    f"[dim]Use [bold cyan]/model[/bold cyan] to select an available model or [bold cyan]/pull <model>[/bold cyan] to download it.[/dim]\n"
+                )
 
     # Initialize prompt_toolkit session
     completer = WordCompleter(SLASH_COMMANDS, ignore_case=True, sentence=True)
@@ -386,13 +502,25 @@ def parse_arguments() -> argparse.Namespace:
         "--host",
         type=str,
         default=None,
-        help="Ollama API base URL (e.g. http://10.100.11.38:11434)",
+        help="Ollama API base URL (e.g. http://<server-ip>:11434)",
     )
     parser.add_argument(
         "--model",
         type=str,
         default=None,
         help="Default model name (e.g. qwen2.5:14b)",
+    )
+    parser.add_argument(
+        "-s",
+        "--select",
+        action="store_true",
+        help="Interactively select a model from the remote server on startup",
+    )
+    parser.add_argument(
+        "-l",
+        "--list-models",
+        action="store_true",
+        help="List all models currently installed on the remote Ollama server and exit",
     )
     parser.add_argument(
         "--timeout",
@@ -439,11 +567,21 @@ def main() -> None:
         system_prompt=args.system,
     )
 
+    if args.list_models:
+        client = OllamaClient(config)
+        try:
+            models = client.list_models()
+            print_model_table(models, config.model)
+        except Exception as exc:
+            console.print(f"[bold bright_red]Error fetching models:[/bold bright_red] {exc}")
+        return
+
     if args.prompt:
         run_single_shot(config, args.prompt)
     else:
-        run_interactive_loop(config)
+        run_interactive_loop(config, prompt_selection=args.select)
 
 
 if __name__ == "__main__":
     main()
+

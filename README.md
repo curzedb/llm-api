@@ -225,13 +225,31 @@ python -m cli_chat.main
 ./run.sh         # Linux / macOS
 ```
 
-### 2. Runtime Parameter Overrides
+### 2. Interactive Model Selection on Startup (New!)
+
+To pick which model to use from a numbered list before entering the chat:
+
+```powershell
+python -m cli_chat.main --select
+# Atau menggunakan shortcut flag:
+python -m cli_chat.main -s
+```
+
+### 3. List All Server Models & Exit
+
+```powershell
+python -m cli_chat.main --list-models
+# Atau:
+python -m cli_chat.main -l
+```
+
+### 4. Runtime Parameter Overrides
 
 Pass CLI arguments to override settings on the fly:
 
 ```bash
 # Connect to a different model or server:
-python -m cli_chat.main --host http://<YOUR_UBUNTU_VM_IP>:11434 --model llama3:8b
+python -m cli_chat.main --host http://<YOUR_UBUNTU_VM_IP>:11434 --model llama3.2:3b
 
 # Extend timeout for large prompts:
 python -m cli_chat.main --timeout 180.0
@@ -240,7 +258,7 @@ python -m cli_chat.main --timeout 180.0
 python -m cli_chat.main --system "You are a senior DevOps engineer reviewing Kubernetes manifests."
 ```
 
-### 3. Single-Shot Mode (Non-interactive)
+### 5. Single-Shot Mode (Non-interactive)
 
 Execute a query directly from the shell without entering the REPL loop:
 
@@ -257,9 +275,12 @@ Inside the interactive chat interface, use the following commands:
 | Command | Description |
 | :--- | :--- |
 | `/help` or `/?` | Display the interactive command reference table. |
+| `/model` | List all installed models on server with index numbers (`#`). |
+| `/model <# or name>` | Switch active model by number (e.g. `/model 2`) or name (e.g. `/model llama3.2`). |
+| `/pull <model>` | Download/pull a new model to the remote Ollama server directly from Windows. |
+| `/delete <model>` | Delete a model from the remote Ollama server. |
 | `/clear` or `/c` | Reset conversational memory while keeping active model and system prompt. |
 | `/system [prompt]` | Display or update the active system persona dynamically. |
-| `/model [name]` | Switch model, or list all models downloaded on the Ollama host if no name given. |
 | `/history` | View a table of turns and user queries submitted in the current session. |
 | `/save [filepath]` | Export conversation to a formatted Markdown file in `./sessions/`. |
 | `/json [filepath]` | Export conversation state as raw JSON. |
