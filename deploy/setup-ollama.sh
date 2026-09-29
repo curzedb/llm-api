@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# 1-Click Ollama CPU-Only Docker Setup for Ubuntu Server VM (10.100.11.38)
+# 1-Click Ollama CPU-Only Docker Setup for Ubuntu Server VM
 # ==============================================================================
 
 set -e
@@ -29,6 +29,6 @@ if command -v ufw &> /dev/null; then
 fi
 
 echo "=================================================================="
-echo "🎉 SUCCESS: Ollama CPU server is ready at http://10.100.11.38:11434"
+echo "🎉 SUCCESS: Ollama CPU server is ready on port 11434!"
 echo "Model 'qwen2.5:14b' is loaded and ready for client queries!"
 echo "=================================================================="

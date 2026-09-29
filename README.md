@@ -1,6 +1,6 @@
 # ⚡ Ollama CLI Chatbot Client
 
-A production-grade, interactive terminal chatbot client designed to connect seamlessly to a self-hosted **Ollama** LLM instance running on an on-premise Ubuntu VM (`10.100.11.38`).
+A production-grade, interactive terminal chatbot client designed to connect seamlessly to a self-hosted **Ollama** LLM instance running on an on-premise Ubuntu VM (`<YOUR_UBUNTU_VM_IP>`).
 
 Built with **Python 3.10+**, **`rich`**, **`prompt_toolkit`**, and **`httpx`**.
 
@@ -19,7 +19,7 @@ Built with **Python 3.10+**, **`rich`**, **`prompt_toolkit`**, and **`httpx`**.
 - [Configuration (.env)](#-configuration-env)
 - [Running the Application](#-running-the-application)
 - [Slash Commands & Keybindings](#-slash-commands--keybindings)
-- [On-Premise Ubuntu VM Setup & Troubleshooting](#-on-premise-ubuntu-vm-setup--troubleshooting)
+- [On-Premise Ubuntu VM Setup & Docker Deployment](#-on-premise-ubuntu-vm-setup--docker-deployment)
 - [Development & Testing](#-development--testing)
 
 ---
@@ -31,10 +31,10 @@ This client is engineered for reliability, responsiveness, and developer ergonom
 ```
 ┌─────────────────────────────────┐                 ┌─────────────────────────────────┐
 │        Local Workstation        │                 │     On-Premise Ubuntu VM        │
-│   (Windows / Linux / macOS)     │                 │        (10.100.11.38)           │
+│   (Windows / Linux / macOS)     │                 │      (<YOUR_UBUNTU_VM_IP>)      │
 │                                 │                 │                                 │
 │  ┌───────────────────────────┐  │   HTTP Stream   │  ┌───────────────────────────┐  │
-│  │     PromptSession         │  │ ──────────────> │  │       Ollama Daemon       │  │
+│  │     PromptSession         │  │ ──────────────> │  │   Ollama Container (CPU)  │  │
 │  │ (History, Autocomplete)   │  │   /api/chat     │  │   (Listening on 0.0.0.0)  │  │
 │  └─────────────┬─────────────┘  │   NDJSON Chunks │  └─────────────┬─────────────┘  │
 │                │                │ <────────────── │                │                │
@@ -51,8 +51,8 @@ This client is engineered for reliability, responsiveness, and developer ergonom
 
 | Setting | Default Value | Description |
 | :--- | :--- | :--- |
-| **Backend Host IP** | `10.100.11.38` | On-premise Ubuntu VM hosting Ollama |
-| **Backend API Endpoint**| `http://10.100.11.38:11434` | Ollama HTTP REST API |
+| **Backend Host IP** | `<YOUR_UBUNTU_VM_IP>` | On-premise Ubuntu VM hosting Ollama |
+| **Backend API Endpoint**| `http://<YOUR_UBUNTU_VM_IP>:11434` | Ollama HTTP REST API |
 | **Active Default Model**| `qwen2.5:14b` | High-capability 14B Qwen2.5 instruction model |
 | **Inference Read Timeout**| `120.0s` | Accommodates 14B inference on CPU or modest GPU |
 | **Connection Timeout** | `10.0s` | Diagnostic pre-flight check and fail-fast |
@@ -78,7 +78,7 @@ This client is engineered for reliability, responsiveness, and developer ergonom
      - Export raw conversation JSON structure (`/json`).
 
 3. **Production-Grade Resilience**:
-   - **Pre-flight Health Diagnostics**: Automatic check against `http://10.100.11.38:11434/api/tags` on boot.
+   - **Pre-flight Health Diagnostics**: Automatic check against `http://<YOUR_UBUNTU_VM_IP>:11434/api/tags` on boot.
    - **Intuitive Troubleshooting Card**: Clear instructions on network reachability, `OLLAMA_HOST` binding, and UFW firewall rules if unreachable.
    - **Graceful Cancellation (`Ctrl+C`)**: Pressing `Ctrl+C` during response streaming halts model generation immediately without closing the application or corrupting session history.
 
@@ -88,6 +88,9 @@ This client is engineered for reliability, responsiveness, and developer ergonom
 
 ```
 llm-api/
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # GitHub Actions CI workflow (Python 3.10-3.12)
 ├── cli_chat/
 │   ├── __init__.py           # Package indicator and versioning
 │   ├── client.py             # Ollama HTTP streaming client using httpx
@@ -95,9 +98,15 @@ llm-api/
 │   ├── main.py               # Application entrypoint & prompt_toolkit loop
 │   ├── session.py            # Turn management, state tracking & export
 │   └── ui.py                 # Rich theme, banners, tables, and renderers
+├── deploy/
+│   ├── docker-compose.yml    # Optimized Docker Compose for Ubuntu (CPU-Only)
+│   └── setup-ollama.sh       # 1-Click setup script for the Ubuntu VM
+├── sessions/
+│   └── .gitkeep              # Session output folder (Markdown/JSON transcripts)
 ├── tests/
 │   └── test_components.py    # Unit test suite
 ├── .env.example              # Template environment configuration file
+├── .gitignore                # Exclusion list (virtualenvs, cache, chat history)
 ├── requirements.txt          # Python dependencies
 ├── run.bat                   # 1-click Windows launcher
 ├── run.sh                    # 1-click Linux/macOS launcher
@@ -109,7 +118,7 @@ llm-api/
 ## 📦 Prerequisites
 
 - **Python 3.10, 3.11, or 3.12+**
-- Network access to the Ubuntu VM at `10.100.11.38:11434` (Direct LAN or VPN)
+- Network access to the Ubuntu VM at port `11434` (Direct LAN or VPN)
 
 ---
 
@@ -119,12 +128,13 @@ llm-api/
 
 1. Clone or navigate to the project directory:
    ```powershell
-   cd c:\Users\jafar\Documents\App\llm-api
+   git clone https://github.com/curzedb/llm-api.git
+   cd llm-api
    ```
 
 2. Create and activate a Python virtual environment:
    ```powershell
-   py -m venv .venv
+   python -m venv .venv
    .\.venv\Scripts\Activate.ps1
    ```
    *(If running in standard CMD, use `.\.venv\Scripts\activate.bat`)*
@@ -143,7 +153,8 @@ llm-api/
 
 1. Navigate to the project directory:
    ```bash
-   cd ~/llm-api
+   git clone https://github.com/curzedb/llm-api.git
+   cd llm-api
    ```
 
 2. Create and activate a virtual environment:
@@ -167,7 +178,7 @@ llm-api/
 
 ## 🔧 Configuration (.env)
 
-You can customize the connection settings without modifying code by creating a `.env` file from the provided `.env.example`:
+Customize connection settings without modifying code by copying the provided `.env.example`:
 
 ```bash
 # Windows
@@ -177,14 +188,15 @@ copy .env.example .env
 cp .env.example .env
 ```
 
-Edit `.env` to match your environment:
+Edit `.env` to point to your Ubuntu VM:
 
 ```ini
 # Ollama Remote Instance Configuration
-OLLAMA_HOST=http://10.100.11.38:11434
+OLLAMA_HOST=http://<YOUR_UBUNTU_VM_IP>:11434
 OLLAMA_MODEL=qwen2.5:14b
 
 # Request Timeouts (in seconds)
+# Default read timeout is 120s to accommodate 14B model CPU inference
 OLLAMA_TIMEOUT=120.0
 OLLAMA_CONNECT_TIMEOUT=10.0
 
@@ -215,11 +227,11 @@ python -m cli_chat.main
 
 ### 2. Runtime Parameter Overrides
 
-You can pass CLI arguments to override settings on the fly:
+Pass CLI arguments to override settings on the fly:
 
 ```bash
 # Connect to a different model or server:
-python -m cli_chat.main --host http://10.100.11.38:11434 --model llama3:8b
+python -m cli_chat.main --host http://<YOUR_UBUNTU_VM_IP>:11434 --model llama3:8b
 
 # Extend timeout for large prompts:
 python -m cli_chat.main --timeout 180.0
@@ -264,73 +276,56 @@ Inside the interactive chat interface, use the following commands:
 
 ---
 
-## 🛠️ On-Premise Ubuntu VM Setup & Troubleshooting
+## 🛠️ On-Premise Ubuntu VM Setup & Docker Deployment
 
-If the startup health check reports that `http://10.100.11.38:11434` is unreachable, follow these steps on the **Ubuntu VM (`10.100.11.38`)**:
+To run Ollama on your **Ubuntu VM** in **CPU-Only** mode using Docker:
 
-### 1. Enable External Network Access (OLLAMA_HOST)
-By default, Ollama binds **strictly to `127.0.0.1` (localhost only)**, refusing connections from other machines on the LAN.
+### 1. Run Ollama via Docker Compose (Recommended)
 
-To allow access from your client machine:
+Copy the `deploy/` directory to your Ubuntu VM and run:
 
 ```bash
-# 1. Edit the systemd service configuration
-sudo systemctl edit ollama.service
-
-# 2. In the editor that opens, paste the following lines:
-[Service]
-Environment="OLLAMA_HOST=0.0.0.0:11434"
-
-# 3. Save and exit, then reload systemd and restart Ollama:
-sudo systemctl daemon-reload
-sudo systemctl restart ollama
-
-# 4. Verify that Ollama is now listening on 0.0.0.0:11434:
-ss -tulpn | grep 11434
-# Expected output: tcp LISTEN 0 ... 0.0.0.0:11434
+cd deploy/
+docker compose up -d
 ```
 
-*If running Ollama via Docker on Ubuntu:*
+Or run via `docker run` directly:
+
 ```bash
-docker run -d -v ollama:/root/.ollama -p 11434:11434 -e OLLAMA_HOST=0.0.0.0 --name ollama ollama/ollama
+docker run -d \
+  --name ollama-cpu \
+  --restart always \
+  -p 11434:11434 \
+  -e OLLAMA_HOST=0.0.0.0:11434 \
+  -e OLLAMA_KEEP_ALIVE=24h \
+  -e OLLAMA_NUM_PARALLEL=1 \
+  -v ollama_storage:/root/.ollama \
+  ollama/ollama
 ```
 
----
+### 2. Pull the 14B Model into the Container
 
-### 2. Configure Ubuntu Firewall (UFW)
-Ensure Ubuntu's firewall allows incoming connections on port `11434`:
+```bash
+docker exec -it ollama-cpu ollama pull qwen2.5:14b
+```
+
+### 3. Open Firewall Port (UFW)
 
 ```bash
 sudo ufw allow 11434/tcp
 sudo ufw reload
-sudo ufw status
 ```
 
----
+### 4. Test Connectivity from Client Workstation
 
-### 3. Verify Model Availability
-Ensure `qwen2.5:14b` has been pulled on the VM:
-
-```bash
-# List pulled models:
-ollama list
-
-# If qwen2.5:14b is missing, pull it:
-ollama pull qwen2.5:14b
-```
-
----
-
-### 4. Test Connectivity from Your Client Machine
-
-From your client workstation (Windows PowerShell or terminal):
+From your Windows workstation (PowerShell):
 
 ```powershell
-# Test network ping:
-Test-Connection 10.100.11.38 -Count 2
+# Test network reachability:
+Test-Connection <YOUR_UBUNTU_VM_IP> -Count 2
 
-# Test HTTP port response:
-curl http://10.100.11.38:11434/api/tags
+# Test HTTP API response:
+curl http://<YOUR_UBUNTU_VM_IP>:11434/api/tags
 ```
 
 ---
