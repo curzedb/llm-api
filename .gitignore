@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.env/
+
+# Environment Variables & Secrets
+.env
+*.env.local
+
+# Terminal History & Local Session Data
+.ollama_cli_history
+sessions/*.md
+sessions/*.json
+!sessions/.gitkeep
+
+# Temporary & Test files
+tmp/
+tmp_test_sessions/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS Specific Files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Build & Distribution
+dist/
+build/
+*.egg-info/

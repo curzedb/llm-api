@@ -1,0 +1,19 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-cpu
+    restart: always
+    ports:
+      - "0.0.0.0:11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      # Keep model in RAM for 24 hours so CPU doesn't reload the 9GB model on every query
+      - OLLAMA_KEEP_ALIVE=24h
+      # Limit parallel inference to 1 on CPU to avoid CPU core thrashing
+      - OLLAMA_NUM_PARALLEL=1
+    volumes:
+      - ollama_storage:/root/.ollama
+
+volumes:
+  ollama_storage:
+    name: ollama_cpu_storage
