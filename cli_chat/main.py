@@ -20,6 +20,7 @@ from rich.panel import Panel
 from cli_chat.client import (
     InferenceMetrics,
     OllamaClient,
+    OllamaClientError,
     OllamaConnectionError,
     OllamaModelNotFoundError,
     OllamaTimeoutError,
@@ -132,6 +133,16 @@ def handle_stream_response(
                 f"[bold bright_red]Network Error:[/bold bright_red] {e}",
                 border_style="bright_red",
                 title="Connection Error",
+            )
+        )
+        return
+    except OllamaClientError as e:
+        session.remove_last_user_message()
+        console.print(
+            Panel(
+                f"[bold bright_red]Ollama API Error:[/bold bright_red] {e}",
+                border_style="bright_red",
+                title="Model Server Error",
             )
         )
         return

@@ -263,15 +263,22 @@ class OllamaClient:
         try:
             with self._get_client() as client:
                 with client.stream("POST", "/api/chat", json=payload) as response:
-                    if response.status_code == 404:
-                        error_body = response.read().decode("utf-8", errors="ignore")
-                        raise OllamaModelNotFoundError(
-                            f"Model '{active_model}' was not found on remote Ollama server ({self.config.host}). "
-                            f"Server message: {error_body}\n"
-                            f"Tip: Pull it on the Ubuntu VM via: ollama pull {active_model}"
-                        )
+                    if response.status_code >= 400:
+                        try:
+                            error_body = response.read().decode("utf-8", errors="ignore")
+                        except Exception:
+                            error_body = f"HTTP {response.status_code}"
 
-                    response.raise_for_status()
+                        if response.status_code == 404:
+                            raise OllamaModelNotFoundError(
+                                f"Model '{active_model}' was not found on remote Ollama server ({self.config.host}).\n"
+                                f"Server message: {error_body}\n"
+                                f"Tip: Pull it on the server via: /pull {active_model}"
+                            )
+
+                        raise OllamaClientError(
+                            f"Ollama server returned HTTP {response.status_code}: {error_body}"
+                        )
 
                     for line in response.iter_lines():
                         if not line:
@@ -303,7 +310,7 @@ class OllamaClient:
         except httpx.ReadTimeout as exc:
             raise OllamaTimeoutError(
                 f"Inference timed out after {self.config.timeout:.0f}s. "
-                "The 14B model may need more CPU/GPU compute time. "
+                "The model may need more CPU/GPU compute time. "
                 "You can increase timeout via OLLAMA_TIMEOUT env var or --timeout flag."
             ) from exc
 
@@ -318,6 +325,10 @@ class OllamaClient:
             ) from exc
 
         except httpx.HTTPStatusError as exc:
+            try:
+                err_text = exc.response.read().decode("utf-8", errors="ignore")
+            except Exception:
+                err_text = str(exc)
             raise OllamaClientError(
-                f"Ollama server returned error status {exc.response.status_code}: {exc.response.text}"
+                f"Ollama server returned error status {exc.response.status_code}: {err_text}"
             ) from exc
