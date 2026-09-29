@@ -33,5 +33,5 @@ if not exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 )
 
-REM Run client with passed arguments (if any)
-python -m cli_chat.main %*
+REM Run client with interactive model selector by default
+python -m cli_chat.main -s %*

@@ -26,5 +26,5 @@ else
     source .venv/bin/activate
 fi
 
-# Launch CLI Chatbot
-python3 -m cli_chat.main "$@"
+# Launch CLI Chatbot with interactive model selection
+python3 -m cli_chat.main -s "$@"
